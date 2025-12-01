@@ -46,8 +46,8 @@ class SocialMediaService {
      */
     async fetchRedditPosts(): Promise<RedditPost[]> {
         try {
-            const subreddits = ['environment', 'ocean', 'marinebiology', 'oceanconservation', 'climatechange'];
-            const keywords = ['ocean pollution', 'oil spill', 'marine debris', 'coral bleaching', 'ocean hazard'];
+            const subreddits = ['environment', 'ocean', 'marinebiology', 'climatechange', 'pollution', 'collapse'];
+            const keywords = ['ocean pollution', 'oil spill', 'marine debris', 'coral bleaching', 'ocean hazard', 'plastic ocean'];
             
             const allPosts: RedditPost[] = [];
             
@@ -101,19 +101,70 @@ class SocialMediaService {
     }
     
     /**
-     * Check if content is ocean-related
+     * Check if content is ocean-related with priority on hazards
      */
     private isOceanRelated(text: string): boolean {
-        const keywords = [
-            'ocean', 'marine', 'sea', 'coastal', 'beach',
-            'oil spill', 'pollution', 'debris', 'plastic',
-            'coral', 'reef', 'fishing', 'whale', 'dolphin',
-            'tsunami', 'hurricane', 'cyclone', 'tide',
-            'maritime', 'naval', 'shipping', 'vessel'
+        const lowerText = text.toLowerCase();
+        
+        // High priority: ocean hazards and threats
+        const hazardKeywords = [
+            'oil spill', 'pollution', 'debris', 'plastic waste',
+            'coral bleaching', 'ocean acidification', 'overfishing',
+            'tsunami', 'hurricane', 'cyclone', 'storm surge',
+            'red tide', 'algal bloom', 'dead zone', 'microplastics',
+            'ghost nets', 'marine litter', 'toxic', 'contamination',
+            'ocean warming', 'sea level rise', 'coastal erosion',
+            'maritime disaster', 'shipwreck', 'chemical spill'
         ];
         
+        // Medium priority: general ocean topics
+        const oceanKeywords = [
+            'ocean', 'marine', 'sea', 'coastal', 'beach',
+            'reef', 'maritime', 'naval', 'shipping'
+        ];
+        
+        // Check hazard keywords first (higher relevance)
+        if (hazardKeywords.some(keyword => lowerText.includes(keyword))) {
+            return true;
+        }
+        
+        // Check general ocean keywords
+        return oceanKeywords.some(keyword => lowerText.includes(keyword));
+    }
+    
+    /**
+     * Check if content is specifically about ocean hazards/threats (strict filter)
+     */
+    private isHazardRelated(text: string): boolean {
         const lowerText = text.toLowerCase();
-        return keywords.some(keyword => lowerText.includes(keyword));
+        
+        // Strict hazard keywords only
+        const hazardKeywords = [
+            'oil spill', 'pollution', 'debris', 'plastic', 'waste',
+            'bleaching', 'acidification', 'overfishing', 'illegal fishing',
+            'tsunami', 'hurricane', 'cyclone', 'storm', 'flood',
+            'red tide', 'algal bloom', 'dead zone', 'microplastic',
+            'ghost net', 'litter', 'toxic', 'contamination', 'spill',
+            'warming', 'sea level', 'erosion', 'threat', 'danger',
+            'disaster', 'crisis', 'damage', 'destruction', 'dying',
+            'endangered', 'extinction', 'dead', 'kill', 'harm',
+            'emergency', 'warning', 'alert', 'risk', 'vulnerable'
+        ];
+        
+        // Exclude wildlife appreciation/beauty posts
+        const excludeKeywords = [
+            'beautiful', 'amazing', 'stunning', 'gorgeous', 'adorable',
+            'cute', 'playing', 'dance', 'majestic', 'peaceful',
+            'relaxing', 'therapy', 'meditation', 'serene'
+        ];
+        
+        // Must have hazard keywords
+        const hasHazard = hazardKeywords.some(keyword => lowerText.includes(keyword));
+        
+        // Should not be appreciation/beauty post
+        const isAppreciation = excludeKeywords.some(keyword => lowerText.includes(keyword));
+        
+        return hasHazard && !isAppreciation;
     }
     
     /**
@@ -177,10 +228,15 @@ class SocialMediaService {
     /**
      * Get comprehensive social media analytics
      */
-    async getSocialMediaAnalytics(): Promise<SocialMediaAnalytics> {
+    async getSocialMediaAnalytics(hazardsOnly: boolean = false): Promise<SocialMediaAnalytics> {
         try {
             // Fetch Reddit data
             const redditPosts = await this.fetchRedditPosts();
+            
+            // Filter posts based on hazardsOnly setting
+            const filteredPosts = hazardsOnly 
+                ? redditPosts.filter(post => this.isHazardRelated(post.title + ' ' + post.text))
+                : redditPosts;
             
             // Get hazard reports from database for local platform data
             const HazardReport = mongoose.model('HazardReport');
@@ -197,7 +253,7 @@ class SocialMediaService {
                 const weekEnd = new Date(now);
                 weekEnd.setDate(now.getDate() - (i * 7));
                 
-                const weekPosts = redditPosts.filter(post => {
+                const weekPosts = filteredPosts.filter(post => {
                     const postDate = new Date(post.created_utc * 1000);
                     return postDate >= weekStart && postDate < weekEnd;
                 });
@@ -215,7 +271,7 @@ class SocialMediaService {
             
             // Mentions by platform (Reddit + our platform)
             const ourPlatformCount = recentReports.length * 10; // Scale for visibility
-            const redditCount = redditPosts.length * 50;
+            const redditCount = filteredPosts.length * 50;
             
             const mentionsByPlatform = [
                 { name: 'Reddit', value: redditCount },
@@ -225,21 +281,29 @@ class SocialMediaService {
             ];
             
             // Top keywords
-            const topKeywords = this.extractKeywords(redditPosts);
+            const topKeywords = this.extractKeywords(filteredPosts);
             
-            // High impact posts from Reddit
-            const highImpactPosts = redditPosts.slice(0, 4).map(post => ({
-                platform: 'Reddit',
-                text: `"${post.title}" - r/${post.subreddit}`,
-                engagement: `${(post.score / 1000).toFixed(1)}K upvotes, ${post.num_comments} comments`,
-                url: post.permalink,
-                imageUrl: post.url && (post.url.includes('.jpg') || post.url.includes('.png') || post.url.includes('.gif')) 
-                    ? post.url 
-                    : 'https://picsum.photos/seed/' + post.title.substring(0, 5) + '/400/300'
-            }));
+            // High impact posts from Reddit with actual thumbnails
+            const highImpactPosts = filteredPosts.slice(0, 4).map(post => {
+                // Try to get actual Reddit image
+                let imageUrl = 'https://picsum.photos/seed/' + post.title.substring(0, 5) + '/400/300';
+                
+                // Check if URL is a direct image
+                if (post.url && (post.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) || post.url.includes('i.redd.it') || post.url.includes('i.imgur.com'))) {
+                    imageUrl = post.url;
+                }
+                
+                return {
+                    platform: 'Reddit',
+                    text: `"${post.title}" - r/${post.subreddit}`,
+                    engagement: `${(post.score / 1000).toFixed(1)}K upvotes, ${post.num_comments} comments`,
+                    url: post.permalink,
+                    imageUrl
+                };
+            });
             
             // Sentiment analysis
-            const sentimentData = this.analyzeSentiment(redditPosts);
+            const sentimentData = this.analyzeSentiment(filteredPosts);
             
             // Emerging threats (trending topics)
             const emergingThreats = topKeywords.slice(0, 3).map((keyword, idx) => ({
@@ -248,13 +312,35 @@ class SocialMediaService {
                 description: `Trending on social media platforms`
             }));
             
-            // Top influencers (static list of real ocean conservation accounts)
-            const topInfluencers = [
-                { name: 'Ocean Conservancy', handle: '@OceanConservancy', avatar: 'https://picsum.photos/seed/inf1/40/40', followers: '2.1M' },
-                { name: 'National Geographic', handle: '@NatGeo', avatar: 'https://picsum.photos/seed/inf2/40/40', followers: '280M' },
-                { name: 'Greenpeace', handle: '@Greenpeace', avatar: 'https://picsum.photos/seed/inf3/40/40', followers: '3.5M' },
-                { name: 'Dr. Ayana Johnson', handle: '@ayanaeliza', avatar: 'https://picsum.photos/seed/inf4/40/40', followers: '150K' }
-            ];
+            // Top influencers from actual Reddit data (most active posters)
+            const authorMap = new Map<string, number>();
+            filteredPosts.forEach(post => {
+                const author = post.author;
+                if (author && author !== '[deleted]' && author !== 'AutoModerator') {
+                    authorMap.set(author, (authorMap.get(author) || 0) + post.score);
+                }
+            });
+            
+            const topInfluencers = Array.from(authorMap.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .map(([author, score]) => ({
+                    name: author,
+                    handle: `u/${author}`,
+                    avatar: `https://www.reddit.com/user/${author}/avatar`,
+                    followers: `${(score / 100).toFixed(1)}K karma`
+                }));
+            
+            // Fallback to defaults if not enough data
+            if (topInfluencers.length < 4) {
+                const defaults = [
+                    { name: 'Ocean Conservancy', handle: '@OceanConservancy', avatar: 'https://picsum.photos/seed/inf1/40/40', followers: '2.1M' },
+                    { name: 'National Geographic', handle: '@NatGeo', avatar: 'https://picsum.photos/seed/inf2/40/40', followers: '280M' },
+                    { name: 'Greenpeace', handle: '@Greenpeace', avatar: 'https://picsum.photos/seed/inf3/40/40', followers: '3.5M' },
+                    { name: 'Dr. Ayana Johnson', handle: '@ayanaeliza', avatar: 'https://picsum.photos/seed/inf4/40/40', followers: '150K' }
+                ];
+                topInfluencers.push(...defaults.slice(0, 4 - topInfluencers.length));
+            }
             
             return {
                 mentionVolumeData,

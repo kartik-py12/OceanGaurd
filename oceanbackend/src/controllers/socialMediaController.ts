@@ -3,7 +3,10 @@ import socialMediaService from '../services/socialMediaService';
 
 export const getSocialMediaAnalytics = async (req: Request, res: Response) => {
     try {
-        const analytics = await socialMediaService.getSocialMediaAnalytics();
+        // Get hazardsOnly parameter from query string (defaults to false)
+        const hazardsOnly = req.query.hazardsOnly === 'true';
+        
+        const analytics = await socialMediaService.getSocialMediaAnalytics(hazardsOnly);
         res.json(analytics);
     } catch (error) {
         console.error('Error fetching social media analytics:', error);

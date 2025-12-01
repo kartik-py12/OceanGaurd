@@ -11,7 +11,11 @@ import { ProfilePage } from './components/ProfilePage';
 import { Page, type User } from './types';
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<Page>(Page.HOME);
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    // Restore page from localStorage on app load
+    const savedPage = localStorage.getItem('currentPage');
+    return savedPage ? (savedPage as Page) : Page.HOME;
+  });
   const [isReporting, setIsReporting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +30,11 @@ const App: React.FC = () => {
       setUser(JSON.parse(storedUser));
     }
   }, []);
+
+  // Persist current page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('currentPage', currentPage);
+  }, [currentPage]);
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);

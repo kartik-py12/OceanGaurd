@@ -58,10 +58,10 @@ export const mentionsByPlatformData = [
 export const topKeywords = ['#OilSpill', '#MarineDebris', '#Cyclone', '#PlasticWaste', '#Pollution', '#RedTide', '#Flooding', '#CoralBleaching', '#BeachCleanup'];
 
 export const highImpactPosts = [
-    { platform: 'Twitter', text: '"Major #OilSpill reported off the coast. Devastating impact on marine life. Authorities are responding. #OceanCrisis"', engagement: '15.2K', imageUrl: 'https://picsum.photos/seed/post1/400/300' },
-    { platform: 'Facebook', text: '"Our community #BeachCleanup was a huge success! Look at all the #PlasticWaste we removed. We can make a difference!"', engagement: '8.7K', imageUrl: 'https://picsum.photos/seed/post2/400/300' },
-    { platform: 'Reddit', text: '"Satellite images show the scale of the #Cyclone forming in the bay. Stay safe everyone."', engagement: '5.1K', imageUrl: 'https://picsum.photos/seed/post3/400/300' },
-    { platform: 'Twitter', text: '"Heartbreaking to see the impact of the #RedTide on local fish populations. We need urgent action."', engagement: '4.8K', imageUrl: 'https://picsum.photos/seed/post4/400/300' },
+    { platform: 'Twitter', text: '"Major #OilSpill reported off the coast. Devastating impact on marine life. Authorities are responding. #OceanCrisis"', engagement: '15.2K', imageUrl: 'https://picsum.photos/seed/post1/400/300', url: '' },
+    { platform: 'Facebook', text: '"Our community #BeachCleanup was a huge success! Look at all the #PlasticWaste we removed. We can make a difference!"', engagement: '8.7K', imageUrl: 'https://picsum.photos/seed/post2/400/300', url: '' },
+    { platform: 'Reddit', text: '"Satellite images show the scale of the #Cyclone forming in the bay. Stay safe everyone."', engagement: '5.1K', imageUrl: 'https://picsum.photos/seed/post3/400/300', url: '' },
+    { platform: 'Twitter', text: '"Heartbreaking to see the impact of the #RedTide on local fish populations. We need urgent action."', engagement: '4.8K', imageUrl: 'https://picsum.photos/seed/post4/400/300', url: '' },
 ];
 
 export const sentimentData = [

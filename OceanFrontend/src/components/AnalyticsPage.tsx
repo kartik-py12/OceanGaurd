@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
-import { mentionVolumeData, topKeywords, highImpactPosts, sentimentData, emergingThreatsData, topInfluencersData } from '../constants';
+import { mentionVolumeData as defaultMentionVolumeData, topKeywords as defaultTopKeywords, highImpactPosts as defaultHighImpactPosts, sentimentData as defaultSentimentData, emergingThreatsData as defaultEmergingThreatsData, topInfluencersData as defaultTopInfluencersData } from '../constants';
 import { Page, HazardType, type User, type HazardReport } from '../types';
 import { api } from '../utils/api';
 
@@ -51,12 +51,24 @@ const StatCard: React.FC<{ title: string; value: string; change?: string; change
     </div>
 );
 
-export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }) => {
+export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate }) => {
     const [activePage, setActivePage] = useState('Dashboard');
     const [hazardReports, setHazardReports] = useState<HazardReport[]>([]);
     const [analyticsData, setAnalyticsData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    // Social media analytics state
+    const [socialLoading, setSocialLoading] = useState(false);
+    const [socialDataFetched, setSocialDataFetched] = useState(false);
+    const [hazardsOnly, setHazardsOnly] = useState(true); // Default to hazards only
+    const [mentionVolumeData, setMentionVolumeData] = useState(defaultMentionVolumeData);
+    const [mentionsByPlatform, setMentionsByPlatform] = useState([{ name: 'Reddit', value: 0 }]);
+    const [topKeywords, setTopKeywords] = useState(defaultTopKeywords);
+    const [highImpactPosts, setHighImpactPosts] = useState(defaultHighImpactPosts);
+    const [sentimentData, setSentimentData] = useState(defaultSentimentData);
+    const [emergingThreatsData, setEmergingThreatsData] = useState(defaultEmergingThreatsData);
+    const [topInfluencersData, setTopInfluencersData] = useState(defaultTopInfluencersData);
     
     const handleSidebarNav = (page: string) => {
         if (page === 'Map View') onNavigate(Page.MAP);
@@ -104,6 +116,34 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }
         const interval = setInterval(fetchData, 60000);
         return () => clearInterval(interval);
     }, []);
+    
+    // Fetch social media analytics when component mounts or when switching to Social Analytics page
+    useEffect(() => {
+        if (activePage === 'Social Analytics' && !socialDataFetched) {
+            const fetchSocialData = async () => {
+                try {
+                    setSocialLoading(true);
+                    const socialData = await api.getSocialMediaAnalytics(hazardsOnly);
+                    
+                    setMentionVolumeData(socialData.mentionVolumeData);
+                    setMentionsByPlatform(socialData.mentionsByPlatform);
+                    setTopKeywords(socialData.topKeywords);
+                    setHighImpactPosts(socialData.highImpactPosts);
+                    setSentimentData(socialData.sentimentData);
+                    setEmergingThreatsData(socialData.emergingThreats);
+                    setTopInfluencersData(socialData.topInfluencers);
+                    setSocialDataFetched(true);
+                } catch (err: any) {
+                    console.error('Error fetching social media analytics:', err);
+                    // Keep using default data on error
+                } finally {
+                    setSocialLoading(false);
+                }
+            };
+            
+            fetchSocialData();
+        }
+    }, [activePage, socialDataFetched, hazardsOnly]);
 
     return (
         <div className="flex h-screen bg-slate-900 text-slate-300">
@@ -264,13 +304,107 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }
 
                 {!loading && activePage === 'Social Analytics' && (
                     <>
-                <h1 className="text-3xl font-bold text-white mb-2">Social Media Analytics Dashboard</h1>
-                <p className="text-slate-400 mb-8">Real-time insights on ocean hazard conversations</p>
+                {socialLoading && !socialDataFetched ? (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                            <svg className="animate-spin h-12 w-12 text-blue-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p className="text-slate-400">Fetching real-time social media data from Reddit...</p>
+                            <p className="text-sm text-slate-500 mt-2">This may take a few seconds</p>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-white mb-2">Social Media Analytics Dashboard</h1>
+                        <p className="text-slate-400">Real-time insights from Reddit and ocean-related social media conversations {socialDataFetched && <span className="text-green-400">✓ Live Data</span>}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        {/* Hazards Only Toggle */}
+                        <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-lg">
+                            <span className="text-sm text-slate-300">Show All Ocean Content</span>
+                            <button
+                                onClick={async () => {
+                                    const newValue = !hazardsOnly;
+                                    setHazardsOnly(newValue);
+                                    setSocialDataFetched(false); // Trigger refetch
+                                    try {
+                                        setSocialLoading(true);
+                                        const socialData = await api.getSocialMediaAnalytics(newValue);
+                                        setMentionVolumeData(socialData.mentionVolumeData);
+                                        setMentionsByPlatform(socialData.mentionsByPlatform);
+                                        setTopKeywords(socialData.topKeywords);
+                                        setHighImpactPosts(socialData.highImpactPosts);
+                                        setSentimentData(socialData.sentimentData);
+                                        setEmergingThreatsData(socialData.emergingThreats);
+                                        setTopInfluencersData(socialData.topInfluencers);
+                                        setSocialDataFetched(true);
+                                    } catch (err) {
+                                        console.error('Error toggling filter:', err);
+                                    } finally {
+                                        setSocialLoading(false);
+                                    }
+                                }}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                    hazardsOnly ? 'bg-red-500' : 'bg-blue-500'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        hazardsOnly ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
+                            <span className="text-sm font-semibold text-slate-300">Hazards Only</span>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    setSocialLoading(true);
+                                    const socialData = await api.getSocialMediaAnalytics(hazardsOnly);
+                                    setMentionVolumeData(socialData.mentionVolumeData);
+                                    setMentionsByPlatform(socialData.mentionsByPlatform);
+                                    setTopKeywords(socialData.topKeywords);
+                                    setHighImpactPosts(socialData.highImpactPosts);
+                                    setSentimentData(socialData.sentimentData);
+                                    setEmergingThreatsData(socialData.emergingThreats);
+                                    setTopInfluencersData(socialData.topInfluencers);
+                                } catch (err) {
+                                    console.error('Error refreshing social data:', err);
+                                } finally {
+                                    setSocialLoading(false);
+                                }
+                            }}
+                            disabled={socialLoading}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                        {socialLoading ? 'Refreshing...' : 'Refresh Data'}
+                    </button>
+                    </div>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                    <StatCard title="Total Mentions (30d)" value="1.2M" change="+15.2%" changeType="positive" />
-                    <StatCard title="Overall Sentiment" value="Largely Negative" change="65% Negative" changeType="negative" />
-                    <StatCard title="Top Platform" value="Twitter" change="45% of mentions" changeType="positive" />
+                    <StatCard 
+                        title="Total Mentions (30d)" 
+                        value={mentionVolumeData.reduce((sum, week) => sum + week.mentions, 0).toLocaleString()} 
+                        change={`Week 4: ${mentionVolumeData[3]?.mentions || 0} mentions`} 
+                        changeType="positive" 
+                    />
+                    <StatCard 
+                        title="Overall Sentiment" 
+                        value={sentimentData.reduce((max, s) => s.value > max.value ? s : max, sentimentData[0])?.name || 'Neutral'} 
+                        change={`${sentimentData.find(s => s.name === 'Negative')?.value || 0}% Negative`} 
+                        changeType={(sentimentData.find(s => s.name === 'Negative')?.value || 0) > 50 ? 'negative' : 'positive'} 
+                    />
+                    <StatCard 
+                        title="Top Platform" 
+                        value={mentionsByPlatform.reduce((max, p) => p.value > max.value ? p : max, mentionsByPlatform[0])?.name || 'Reddit'} 
+                        change={`${Math.round((mentionsByPlatform.reduce((max, p) => p.value > max.value ? p : max, mentionsByPlatform[0])?.value || 0) / mentionsByPlatform.reduce((sum, p) => sum + p.value, 0) * 100)}% of mentions`} 
+                        changeType="positive" 
+                    />
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -292,7 +426,18 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }
 
                     {/* Sentiment Analysis */}
                     <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl">
-                        <h2 className="text-xl font-semibold text-white mb-4">Sentiment Analysis</h2>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-semibold text-white">Sentiment Analysis</h2>
+                            <div className="group relative">
+                                <svg className="w-5 h-5 text-slate-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div className="absolute right-0 w-64 p-3 bg-slate-700 text-slate-200 text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Analyzed using AFINN-based sentiment analysis library. 
+                                    Scores posts as positive, negative, or neutral based on emotional tone and word choice in Reddit titles and content.
+                                </div>
+                            </div>
+                        </div>
                         <div className="h-64">
                              <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -343,11 +488,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                     <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl lg:col-span-1">
-                        <h2 className="text-xl font-semibold text-white mb-4">Top Influencers</h2>
+                        <h2 className="text-xl font-semibold text-white mb-4">Top Contributors</h2>
                         <div className="space-y-4">
                             {topInfluencersData.map(influencer => (
                                 <div key={influencer.handle} className="flex items-center space-x-4">
-                                    <img src={influencer.avatar} alt={influencer.name} className="w-10 h-10 rounded-full"/>
+                                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
+                                        {influencer.name.charAt(0).toUpperCase()}
+                                    </div>
                                     <div>
                                         <p className="font-semibold text-white">{influencer.name}</p>
                                         <p className="text-sm text-slate-400">{influencer.handle} &middot; {influencer.followers} followers</p>
@@ -357,15 +504,29 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }
                         </div>
                     </div>
                     <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-xl lg:col-span-2">
-                        <h2 className="text-xl font-semibold text-white mb-4">High Impact Media</h2>
+                        <h2 className="text-xl font-semibold text-white mb-4">High Impact Posts</h2>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[...highImpactPosts, {imageUrl: 'https://picsum.photos/seed/post5/400/300', text: 'Another image...'}, {imageUrl: 'https://picsum.photos/seed/post6/400/300', text: 'Another image...'}].slice(0, 4).map((post, index) => (
-                                <div key={index} className="relative aspect-video group">
-                                    <img src={post.imageUrl} className="w-full h-full object-cover rounded-lg"/>
+                            {highImpactPosts.slice(0, 4).map((post, index) => (
+                                <a 
+                                    key={index} 
+                                    href={post.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="relative aspect-video group cursor-pointer"
+                                >
+                                    <img 
+                                        src={post.imageUrl} 
+                                        alt={post.text}
+                                        className="w-full h-full object-cover rounded-lg"
+                                        onError={(e) => {
+                                            // Fallback if image fails to load
+                                            (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/' + index + '/400/300';
+                                        }}
+                                    />
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                                         <p className="text-white text-xs line-clamp-2">{post.text}</p>
                                     </div>
-                                </div>
+                                </a>
                             ))}
                         </div>
                     </div>
@@ -385,15 +546,25 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user }
                         </thead>
                         <tbody>
                             {highImpactPosts.map((post, index) => (
-                                <tr key={index} className="border-b border-slate-800">
+                                <tr key={index} className="border-b border-slate-800 hover:bg-slate-700/50">
                                     <td className="py-4 font-semibold text-white">{post.platform}</td>
-                                    <td className="py-4 text-slate-300">{post.text}</td>
+                                    <td className="py-4 text-slate-300">
+                                        {post.url ? (
+                                            <a href={post.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
+                                                {post.text}
+                                            </a>
+                                        ) : (
+                                            post.text
+                                        )}
+                                    </td>
                                     <td className="py-4 text-right font-bold text-white">{post.engagement}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                  </div>
+                    </>
+                )}
                     </>
                 )}
             </main>

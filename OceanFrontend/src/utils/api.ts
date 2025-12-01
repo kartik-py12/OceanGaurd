@@ -139,5 +139,33 @@ export const api = {
   async getUserProfile() {
     return this.request<{ user: any; reports: any[]; stats: any }>('/user/profile');
   },
-};
 
+  // Social Media endpoints
+  async getSocialMediaAnalytics(hazardsOnly: boolean = false) {
+    const query = hazardsOnly ? '?hazardsOnly=true' : '';
+    return this.request<{
+      mentionVolumeData: Array<{ name: string; mentions: number }>;
+      mentionsByPlatform: Array<{ name: string; value: number }>;
+      topKeywords: string[];
+      highImpactPosts: Array<{
+        platform: string;
+        text: string;
+        engagement: string;
+        url: string;
+        imageUrl: string;
+      }>;
+      sentimentData: Array<{ name: string; value: number; fill: string }>;
+      emergingThreats: Array<{
+        term: string;
+        growth: string;
+        description: string;
+      }>;
+      topInfluencers: Array<{
+        name: string;
+        handle: string;
+        avatar: string;
+        followers: string;
+      }>;
+    }>(`/social-media/analytics${query}`);
+  },
+};
