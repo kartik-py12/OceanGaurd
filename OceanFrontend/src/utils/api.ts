@@ -111,15 +111,23 @@ export const api = {
   },
 
   // News endpoints
-  async getNewsArticles(params?: { category?: string; limit?: number; skip?: number; sortBy?: string }) {
+  async getNewsArticles(params?: { category?: string; source?: string; verificationStatus?: string; limit?: number; skip?: number; sortBy?: string }) {
     const queryParams = new URLSearchParams();
     if (params?.category) queryParams.append('category', params.category);
+    if (params?.source) queryParams.append('source', params.source);
+    if (params?.verificationStatus) queryParams.append('verificationStatus', params.verificationStatus);
     if (params?.limit) queryParams.append('limit', String(params.limit));
     if (params?.skip) queryParams.append('skip', String(params.skip));
     if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
     
     const query = queryParams.toString();
     return this.request<{ data: any[]; total: number }>(`/news${query ? `?${query}` : ''}`);
+  },
+
+  async syncRSSFeeds() {
+    return this.request<{ message: string; data: { success: number; failed: number } }>('/news/sync-rss', {
+      method: 'POST',
+    });
   },
 
   // Analytics endpoints

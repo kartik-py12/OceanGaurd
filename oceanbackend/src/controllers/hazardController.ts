@@ -135,6 +135,8 @@ export const createHazardReport = async (req: AuthRequest, res: Response): Promi
         imageUrl: imageUrl || 'https://picsum.photos/seed/hazard/400/300',
         category: type,
         date: new Date(),
+        source: 'hazard-report',
+        verificationStatus: 'unverified',
         hazardReportId: hazardReport._id,
       });
       

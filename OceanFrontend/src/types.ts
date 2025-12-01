@@ -35,6 +35,9 @@ export interface HazardReport {
     timestamp: string;
     imageUrl: string;
     verified: boolean;
+    verificationStatus?: 'unverified' | 'ai-verified' | 'admin-verified';
+    verifiedBy?: string;
+    verifiedAt?: string;
 }
 
 export interface NewsArticle {
@@ -44,6 +47,9 @@ export interface NewsArticle {
     imageUrl: string;
     category: string;
     date: string;
+    source?: 'hazard-report' | 'rss-feed';
+    verificationStatus?: 'unverified' | 'ai-verified' | 'admin-verified' | null;
+    sourceUrl?: string;
     hazardReportId?: string | null;
 }
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HazardType } from '../types';
 import { OilSpillIcon, DebrisIcon, PollutionIcon, OtherIcon, LocationIcon } from '../constants';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import { api } from '../utils/api';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -32,13 +32,25 @@ const HazardTypeButton: React.FC<{
 const LocationPicker: React.FC<{
   location: { lat: number; lng: number };
   setLocation: (location: { lat: number; lng: number }) => void;
-}> = ({ location, setLocation }) => {
+  centerOnLocation?: boolean;
+}> = ({ location, setLocation, centerOnLocation }) => {
   const MapEvents = () => {
     useMapEvents({
       click(e) {
         setLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
       },
     });
+    return null;
+  };
+
+  const MapCenter = () => {
+    const map = useMap();
+    useEffect(() => {
+      if (centerOnLocation) {
+        map.setView([location.lat, location.lng], 13);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [map, location.lat, location.lng]);
     return null;
   };
   
@@ -54,7 +66,7 @@ const LocationPicker: React.FC<{
   return (
     <MapContainer
       center={[location.lat, location.lng]}
-      zoom={3}
+      zoom={centerOnLocation ? 13 : 3}
       style={{ height: '100%', width: '100%', borderRadius: '0.5rem' }}
     >
       <TileLayer
@@ -63,6 +75,7 @@ const LocationPicker: React.FC<{
       />
       <Marker position={[location.lat, location.lng]} icon={customMarkerIcon}/>
       <MapEvents />
+      <MapCenter />
     </MapContainer>
   );
 };
@@ -80,6 +93,10 @@ export const ReportHazardWizard: React.FC<ReportHazardWizardProps> = ({ isOpen, 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [locationName, setLocationName] = useState<string>('');
+  const [fetchingLocationName, setFetchingLocationName] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<Array<{display_name: string; lat: string; lon: string}>>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { latitude, longitude, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
 
@@ -96,6 +113,10 @@ export const ReportHazardWizard: React.FC<ReportHazardWizardProps> = ({ isOpen, 
       setLocation({ lat: 20.0, lng: 0.0 });
       setSearchQuery('');
       setUseCurrentLocation(false);
+      setLocationName('');
+      setFetchingLocationName(false);
+      setSearchSuggestions([]);
+      setIsSearching(false);
       // Scroll to top when modal opens
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = 0;
@@ -103,43 +124,80 @@ export const ReportHazardWizard: React.FC<ReportHazardWizardProps> = ({ isOpen, 
     }
   }, [isOpen]);
 
-  // Auto-set location from geolocation when available
-  useEffect(() => {
-    if (latitude && longitude && !useCurrentLocation) {
-      setLocation({ lat: latitude, lng: longitude });
-      setUseCurrentLocation(true);
-      setErrors(prev => ({ ...prev, location: '' }));
+  // Fetch location name from coordinates using reverse geocoding
+  const fetchLocationName = async (lat: number, lng: number) => {
+    setFetchingLocationName(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+      );
+      const data = await response.json();
+      if (data.display_name) {
+        setLocationName(data.display_name);
+      } else if (data.address) {
+        const parts = [];
+        if (data.address.city) parts.push(data.address.city);
+        if (data.address.state) parts.push(data.address.state);
+        if (data.address.country) parts.push(data.address.country);
+        setLocationName(parts.join(', ') || 'Unknown location');
+      } else {
+        setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+      }
+    } catch (error) {
+      console.error('Error fetching location name:', error);
+      setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    } finally {
+      setFetchingLocationName(false);
     }
-  }, [latitude, longitude, useCurrentLocation]);
+  };
 
-  const handleLocationSearch = (query: string) => {
-    setSearchQuery(query);
-    // Try to parse coordinates
+  // Fetch location name when location changes
+  useEffect(() => {
+    if (location.lat !== 20.0 || location.lng !== 0.0) {
+      fetchLocationName(location.lat, location.lng);
+    }
+  }, [location]);
+
+  const handleLocationSearch = async (query: string) => {
+    if (!query || query.trim().length < 3) {
+      setSearchSuggestions([]);
+      return;
+    }
+
+    // Try to parse coordinates first
     const coordMatch = query.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/);
     if (coordMatch) {
       const lat = parseFloat(coordMatch[1]);
       const lng = parseFloat(coordMatch[2]);
       if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
         setLocation({ lat, lng });
+        setSearchSuggestions([]);
+        setUseCurrentLocation(false);
         return;
       }
     }
-    // Simple location search
-    const locationMap: { [key: string]: { lat: number; lng: number } } = {
-      'pacific': { lat: 20, lng: -140 },
-      'atlantic': { lat: 30, lng: -40 },
-      'indian': { lat: -10, lng: 70 },
-      'hawaii': { lat: 21.3, lng: -157.8 },
-      'gulf of mexico': { lat: 28.7, lng: -89.5 },
-      'mediterranean': { lat: 35, lng: 18 },
-    };
-    const lowerQuery = query.toLowerCase();
-    for (const [key, coords] of Object.entries(locationMap)) {
-      if (lowerQuery.includes(key)) {
-        setLocation(coords);
-        return;
-      }
+
+    // Search using Nominatim geocoding API
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
+      );
+      const data = await response.json();
+      setSearchSuggestions(data);
+    } catch (error) {
+      console.error('Error searching location:', error);
+      setSearchSuggestions([]);
+    } finally {
+      setIsSearching(false);
     }
+  };
+
+  const selectSearchSuggestion = (suggestion: {display_name: string; lat: string; lon: string}) => {
+    setLocation({ lat: parseFloat(suggestion.lat), lng: parseFloat(suggestion.lon) });
+    setSearchQuery('');
+    setSearchSuggestions([]);
+    setUseCurrentLocation(false);
   };
 
   if (!isOpen) return null;
@@ -240,22 +298,67 @@ export const ReportHazardWizard: React.FC<ReportHazardWizardProps> = ({ isOpen, 
                   <span className="text-xs text-green-400">✓ Using your location</span>
                 )}
               </div>
-              <input 
-                type="text" 
-                placeholder="Search by location name or coordinates (e.g., 30.0, -40.0)" 
-                className="w-full p-3 bg-slate-800/80 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                value={searchQuery || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onBlur={() => searchQuery && handleLocationSearch(searchQuery)}
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Search: 'Jalandhar, Punjab' or enter coordinates" 
+                  className="w-full p-3 bg-slate-800/80 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    // Debounce search
+                    setTimeout(() => {
+                      if (e.target.value === searchQuery) {
+                        handleLocationSearch(e.target.value);
+                      }
+                    }, 500);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery) {
+                      handleLocationSearch(searchQuery);
+                    }
+                  }}
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-3">
+                    <svg className="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                )}
+                {searchSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {searchSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => selectSearchSuggestion(suggestion)}
+                        className="w-full text-left p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                      >
+                        <div className="text-sm text-white">{suggestion.display_name}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex-grow bg-slate-900/50 rounded-lg">
-                <LocationPicker location={location} setLocation={(loc) => {
-                  setLocation(loc);
-                  setUseCurrentLocation(false);
-                  setErrors(prev => ({ ...prev, location: '' }));
-                }} />
+                <LocationPicker 
+                  location={location} 
+                  setLocation={(loc) => {
+                    setLocation(loc);
+                    setUseCurrentLocation(false);
+                    setErrors(prev => ({ ...prev, location: '' }));
+                  }} 
+                  centerOnLocation={useCurrentLocation}
+                />
             </div>
+            {locationName && (
+              <div className="mt-2 text-sm text-slate-300 bg-slate-800/50 p-2 rounded">
+                <span className="text-slate-400">📍 </span>
+                {fetchingLocationName ? 'Fetching location...' : locationName}
+              </div>
+            )}
             {errors.location && <p className="text-red-400 text-sm mt-2">{errors.location}</p>}
           </div>
         );
@@ -346,7 +449,16 @@ export const ReportHazardWizard: React.FC<ReportHazardWizardProps> = ({ isOpen, 
                         <div className="mr-4 mt-1">{item.icon}</div>
                         <div>
                             <p className="font-semibold text-slate-300">{item.label}</p>
-                            <div className="text-slate-100">{item.value}</div>
+                            <div className="text-slate-100">
+                              {item.label === 'Location' && locationName ? (
+                                <div>
+                                  <div className="text-sm">{locationName}</div>
+                                  <div className="text-xs text-slate-400 mt-1">{item.value}</div>
+                                </div>
+                              ) : (
+                                item.value
+                              )}
+                            </div>
                         </div>
                     </div>
                     <button className="text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded-md" onClick={() => setStep(item.step)}>Edit</button>

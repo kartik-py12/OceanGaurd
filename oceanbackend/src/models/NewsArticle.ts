@@ -6,6 +6,9 @@ export interface INewsArticle extends Document {
   imageUrl: string;
   category: string;
   date: Date;
+  source: 'hazard-report' | 'rss-feed';
+  verificationStatus?: 'unverified' | 'ai-verified' | 'admin-verified';
+  sourceUrl?: string;
   hazardReportId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +38,21 @@ const NewsArticleSchema: Schema = new Schema({
     type: Date,
     required: [true, 'Date is required'],
     default: Date.now,
+  },
+  source: {
+    type: String,
+    required: [true, 'Source is required'],
+    enum: ['hazard-report', 'rss-feed'],
+    default: 'hazard-report',
+  },
+  verificationStatus: {
+    type: String,
+    enum: ['unverified', 'ai-verified', 'admin-verified'],
+    default: null,
+  },
+  sourceUrl: {
+    type: String,
+    default: null,
   },
   hazardReportId: {
     type: Schema.Types.ObjectId,

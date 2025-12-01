@@ -1,17 +1,23 @@
 import { Request, Response } from 'express';
 import NewsArticle from '../models/NewsArticle';
+import { fetchAndStoreRSSFeeds } from '../services/rssFeedService';
 
 export const getNewsArticles = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category, limit = 100, skip = 0, sortBy = 'date-desc' } = req.query;
+    const { category, limit = 100, skip = 0, sortBy = 'date-desc', source, verificationStatus } = req.query;
 
     const filter: any = {};
     if (category && category !== 'all') {
       filter.category = category;
     }
+    if (source && source !== 'all') {
+      filter.source = source;
+    }
+    if (verificationStatus && verificationStatus !== 'all') {
+      filter.verificationStatus = verificationStatus;
+    }
 
     // Default sort: by date descending (latest first)
-    // This naturally shows latest reports first since news is created when reports are created
     let sort: any = { date: -1 };
     
     if (sortBy === 'date-asc') {
@@ -28,7 +34,14 @@ export const getNewsArticles = async (req: Request, res: Response): Promise<void
     }
 
     const articles = await NewsArticle.find(filter)
-      .populate('hazardReportId', 'type location severity verified createdAt')
+      .populate({
+        path: 'hazardReportId',
+        select: 'type location severity verified verificationStatus verifiedBy verifiedAt createdAt',
+        populate: {
+          path: 'verifiedBy',
+          select: 'name email',
+        },
+      })
       .sort(sort)
       .limit(Number(limit))
       .skip(Number(skip));
@@ -57,6 +70,8 @@ export const createNewsArticle = async (req: Request, res: Response): Promise<vo
       imageUrl,
       category,
       date: date || new Date(),
+      source: 'rss-feed',
+      verificationStatus: null,
     });
 
     res.status(201).json({
@@ -65,6 +80,20 @@ export const createNewsArticle = async (req: Request, res: Response): Promise<vo
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error creating news article' });
+  }
+};
+
+export const syncRSSFeeds = async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('📡 Manually syncing RSS feeds...');
+    const result = await fetchAndStoreRSSFeeds();
+    
+    res.status(200).json({
+      message: 'RSS feeds synced successfully',
+      data: result,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error syncing RSS feeds' });
   }
 };
 
