@@ -25,8 +25,12 @@ const AppContent: React.FC = () => {
 
   // Initialize Socket.io connection
   useEffect(() => {
-    const socketConnection = io('http://localhost:3000', {
-      transports: ['websocket', 'polling']
+    // In production, connect to same server. In dev, use localhost:3000
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+                     (import.meta.env.PROD ? window.location.origin : 'http://localhost:3000');
+    const socketConnection = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      path: '/socket.io'
     });
 
     socketConnection.on('connect', () => {
