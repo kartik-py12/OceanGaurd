@@ -7,6 +7,7 @@ export enum Page {
     LOGIN,
     SIGNUP,
     PROFILE,
+    GOVERNMENT_ALERTS,
 }
 
 export enum HazardType {
@@ -80,5 +81,6 @@ export interface User {
     id: string;
     name: string;
     email: string;
+    role?: 'user' | 'admin';
     createdAt?: string;
 }

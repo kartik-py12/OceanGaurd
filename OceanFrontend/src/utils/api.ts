@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const api = {
   async request<T>(
@@ -29,7 +29,28 @@ export const api = {
     return response.json();
   },
 
-  // Auth endpoints
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  },
+
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  async put<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  },
+
   async login(email: string, password: string) {
     return this.request<{ token: string; user: any }>('/auth/login', {
       method: 'POST',
@@ -44,7 +65,6 @@ export const api = {
     });
   },
 
-  // Hazard endpoints
   async getHazardReports(params?: { type?: string; verified?: boolean; limit?: number; skip?: number; userId?: string }) {
     const queryParams = new URLSearchParams();
     if (params?.type) queryParams.append('type', params.type);
@@ -67,7 +87,6 @@ export const api = {
   }) {
     const token = localStorage.getItem('token');
     
-    // If imageFile is provided, use FormData; otherwise use JSON
     if (data.imageFile) {
       const formData = new FormData();
       formData.append('type', data.type);
@@ -96,7 +115,6 @@ export const api = {
 
       return response.json();
     } else {
-      // Fallback to JSON for backward compatibility
       return this.request<{ message: string; data: any }>('/hazards', {
         method: 'POST',
         body: JSON.stringify({
@@ -110,7 +128,6 @@ export const api = {
     }
   },
 
-  // News endpoints
   async getNewsArticles(params?: { category?: string; source?: string; verificationStatus?: string; limit?: number; skip?: number; sortBy?: string }) {
     const queryParams = new URLSearchParams();
     if (params?.category) queryParams.append('category', params.category);
@@ -130,17 +147,21 @@ export const api = {
     });
   },
 
-  // Analytics endpoints
   async getAnalytics() {
     return this.request<{ data: any }>('/analytics');
   },
 
-  // User endpoints
   async getUserProfile() {
     return this.request<{ user: any; reports: any[]; stats: any }>('/user/profile');
   },
 
-  // Social Media endpoints
+  async updateUserProfile(data: { name?: string; email?: string; phone?: string; location?: any }) {
+    return this.request<{ user: any }>('/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
   async getSocialMediaAnalytics(hazardsOnly: boolean = false) {
     const query = hazardsOnly ? '?hazardsOnly=true' : '';
     return this.request<{
@@ -167,5 +188,30 @@ export const api = {
         followers: string;
       }>;
     }>(`/social-media/analytics${query}`);
+  },
+
+  async getGovernmentAlerts() {
+    return this.request<{
+      data: any[];
+      summary: {
+        total: number;
+        weather: number;
+        tsunami: number;
+        earthquake: number;
+      };
+      lastUpdated: string;
+    }>('/government/alerts');
+  },
+
+  async getOceanWeather(lat: number, lng: number) {
+    return this.request<{
+      data: any;
+    }>(`/government/weather?lat=${lat}&lng=${lng}`);
+  },
+
+  async getMarineForecast(lat: number, lng: number) {
+    return this.request<{
+      data: any;
+    }>(`/government/forecast?lat=${lat}&lng=${lng}`);
   },
 };

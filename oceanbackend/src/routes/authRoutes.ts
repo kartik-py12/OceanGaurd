@@ -12,25 +12,8 @@ const validate = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-router.post(
-  '/signup',
-  [
-    body('name').trim().notEmpty().withMessage('Name is required'),
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    validate,
-  ],
-  signup
-);
+router.post('/signup', signup);
 
-router.post(
-  '/login',
-  [
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').notEmpty().withMessage('Password is required'),
-    validate,
-  ],
-  login
-);
+router.post('/login', login);
 
 export default router;

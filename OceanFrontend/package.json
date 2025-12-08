@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
@@ -15,8 +16,10 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.10.0",
     "recharts": "^3.4.1",
     "shadcn": "^3.5.0",
+    "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {

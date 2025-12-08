@@ -48,7 +48,6 @@ const generateSummary = (content: string, maxLength: number = 200): string => {
   // Remove HTML tags
   const cleanContent = content.replace(/<[^>]*>/g, '');
   
-  // Truncate to max length
   if (cleanContent.length <= maxLength) {
     return cleanContent;
   }
@@ -71,11 +70,9 @@ export const fetchAndStoreRSSFeeds = async (): Promise<{ success: number; failed
   let successCount = 0;
   let failedCount = 0;
 
-  console.log('🔄 Starting RSS feed fetch...');
-
   for (const feedUrl of RSS_FEEDS) {
     try {
-      console.log(`📡 Fetching feed: ${feedUrl}`);
+      console.log(` Fetching feed: ${feedUrl}`);
       const feed = await parser.parseURL(feedUrl);
 
       for (const item of feed.items as RSSItem[]) {
@@ -84,7 +81,6 @@ export const fetchAndStoreRSSFeeds = async (): Promise<{ success: number; failed
             continue;
           }
 
-          // Check if article already exists by source URL
           const existing = await NewsArticle.findOne({ sourceUrl: item.link });
           if (existing) {
             continue;
@@ -107,19 +103,19 @@ export const fetchAndStoreRSSFeeds = async (): Promise<{ success: number; failed
           });
 
           successCount++;
-          console.log(`✅ Added article: ${item.title.substring(0, 50)}...`);
+          console.log(`Added article: ${item.title.substring(0, 50)}...`);
         } catch (error) {
           failedCount++;
-          console.error(`❌ Failed to save article: ${item.title}`, error);
+          console.error(`Failed to save article: ${item.title}`, error);
         }
       }
     } catch (error) {
-      console.error(`❌ Failed to fetch feed: ${feedUrl}`, error);
+      console.error(`Failed to fetch feed: ${feedUrl}`, error);
       failedCount++;
     }
   }
 
-  console.log(`✅ RSS feed fetch complete: ${successCount} added, ${failedCount} failed`);
+  console.log(`RSS feed fetch complete: ${successCount} added, ${failedCount} failed`);
   return { success: successCount, failed: failedCount };
 };
 

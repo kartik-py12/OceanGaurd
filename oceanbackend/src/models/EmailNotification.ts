@@ -37,7 +37,6 @@ const EmailNotificationSchema: Schema = new Schema({
   timestamps: true,
 });
 
-// Index to check for duplicate reports in same location
 EmailNotificationSchema.index({ type: 1, 'location.lat': 1, 'location.lng': 1 });
 
 export default mongoose.model<IEmailNotification>('EmailNotification', EmailNotificationSchema);

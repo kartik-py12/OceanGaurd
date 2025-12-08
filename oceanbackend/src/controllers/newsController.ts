@@ -17,7 +17,6 @@ export const getNewsArticles = async (req: Request, res: Response): Promise<void
       filter.verificationStatus = verificationStatus;
     }
 
-    // Default sort: by date descending (latest first)
     let sort: any = { date: -1 };
     
     if (sortBy === 'date-asc') {
@@ -29,7 +28,6 @@ export const getNewsArticles = async (req: Request, res: Response): Promise<void
     } else if (sortBy === 'title-desc') {
       sort = { title: -1 };
     } else if (sortBy === 'latest-reports') {
-      // Prioritize latest reports: sort by date descending
       sort = { date: -1 };
     }
 

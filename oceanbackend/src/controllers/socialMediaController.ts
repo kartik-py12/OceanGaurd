@@ -3,7 +3,6 @@ import socialMediaService from '../services/socialMediaService';
 
 export const getSocialMediaAnalytics = async (req: Request, res: Response) => {
     try {
-        // Get hazardsOnly parameter from query string (defaults to false)
         const hazardsOnly = req.query.hazardsOnly === 'true';
         
         const analytics = await socialMediaService.getSocialMediaAnalytics(hazardsOnly);

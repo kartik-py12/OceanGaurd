@@ -20,39 +20,27 @@ const validate = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// GET routes don't require authentication (public data)
-// POST, PUT, DELETE require authentication
 router.get('/', getHazardReports);
 router.get('/:id', getHazardReportById);
 
-// Protected routes
 router.use(authenticate);
 
 router.post(
   '/',
-  upload.single('image'), // Handle single image upload with field name 'image'
+  upload.single('image'), 
   (err: any, req: Request, res: Response, next: NextFunction) => {
-    // Handle multer errors
     if (err) {
       console.error('Multer error:', err);
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ message: 'File too large. Maximum size is 5MB.' });
-      }
-      if (err.code === 'LIMIT_FILE_TYPE' || err.message?.includes('Only image files')) {
-        return res.status(400).json({ message: 'Only image files are allowed!' });
-      }
       return res.status(400).json({ message: err.message || 'File upload error' });
     }
     next();
   },
   [
     body('type').isIn(['Oil Spill', 'Debris', 'Pollution', 'Other']).withMessage('Invalid hazard type'),
-    // Location validation - handle both JSON string and object
-    // Make it optional during validation, let controller handle parsing
     body('location').optional().custom((value, { req }) => {
       const locationValue = value || req.body.location;
       if (!locationValue) {
-        return true; // Let controller handle missing location
+        return true; 
       }
       if (typeof locationValue === 'string') {
         try {
@@ -64,11 +52,9 @@ router.post(
             throw new Error('Invalid location coordinates');
           }
         } catch (e: any) {
-          // Don't fail validation here, let controller handle it
           return true;
         }
       } else if (locationValue && (typeof locationValue.lat !== 'number' || typeof locationValue.lng !== 'number')) {
-        // Invalid format, but let controller handle it
         return true;
       }
       return true;

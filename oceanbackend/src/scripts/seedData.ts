@@ -11,12 +11,10 @@ const seedData = async () => {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/oceanguard');
     console.log('Connected to MongoDB');
 
-    // Clear existing data
     await HazardReport.deleteMany({});
     await NewsArticle.deleteMany({});
     console.log('Cleared existing data');
 
-    // Create a test user
     let testUser = await User.findOne({ email: 'test@oceanguard.com' });
     if (!testUser) {
       testUser = await User.create({
@@ -27,7 +25,6 @@ const seedData = async () => {
       console.log('Created test user');
     }
 
-    // Seed hazard reports
     const hazardReports = [
       {
         type: 'Debris',
@@ -61,7 +58,6 @@ const seedData = async () => {
     await HazardReport.insertMany(hazardReports);
     console.log('Seeded hazard reports');
 
-    // Seed news articles
     const newsArticles = [
       {
         title: 'Detected Off Coast',
@@ -124,7 +120,7 @@ const seedData = async () => {
     await NewsArticle.insertMany(newsArticles);
     console.log('Seeded news articles');
 
-    console.log('✅ Seed data created successfully!');
+    console.log(' Seed data created successfully!');
     process.exit(0);
   } catch (error) {
     console.error('Error seeding data:', error);

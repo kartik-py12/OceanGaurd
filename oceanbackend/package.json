@@ -5,10 +5,15 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "tsc",
+    "build:frontend": "cd ../OceanFrontend && npm install && npm run build",
+    "start": "NODE_ENV=production node dist/index.js",
     "seed": "ts-node src/scripts/seedData.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "create-admin": "ts-node src/scripts/createAdmin.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "railway:build": "npm install && npm run build",
+    "railway:start": "npm start"
   },
   "keywords": [
     "ocean",
@@ -32,7 +37,10 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.10",
     "rss-parser": "^3.13.0",
-    "sentiment": "^5.0.2"
+    "sentiment": "^5.0.2",
+    "socket.io": "^4.8.1",
+    "twilio": "^5.10.6",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

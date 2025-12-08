@@ -3,19 +3,16 @@ import HazardReport from '../models/HazardReport';
 
 export const getAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Get total reports
     const totalReports = await HazardReport.countDocuments();
     const verifiedReports = await HazardReport.countDocuments({ verified: true });
     const avgSeverity = await HazardReport.aggregate([
       { $group: { _id: null, avgSeverity: { $avg: '$severity' } } },
     ]);
 
-    // Get reports by type
     const reportsByType = await HazardReport.aggregate([
       { $group: { _id: '$type', count: { $sum: 1 } } },
     ]);
 
-    // Get severity distribution
     const severityDistribution = await HazardReport.aggregate([
       {
         $bucket: {
@@ -27,7 +24,6 @@ export const getAnalytics = async (req: Request, res: Response): Promise<void> =
       },
     ]);
 
-    // Get reports over time (last 4 weeks)
     const fourWeeksAgo = new Date();
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 

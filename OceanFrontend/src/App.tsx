@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { HomePage } from './components/HomePage';
 import { MapPage } from './components/MapPage';
 import { NewsFeedPage } from './components/NewsFeedPage';
@@ -8,44 +9,110 @@ import { ReportHazardWizard } from './components/ReportHazardWizard';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
 import { ProfilePage } from './components/ProfilePage';
+import { NotificationCenter } from './components/NotificationCenter';
+import { GovernmentAlertsPage } from './components/GovernmentAlertsPage';
+import { AdminDashboard } from './components/AdminDashboard';
+import { ManageReports } from './components/ManageReports';
+import { ManageUsers } from './components/ManageUsers';
 import { Page, type User } from './types';
+import { io, Socket } from 'socket.io-client';
 
-const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<Page>(() => {
-    // Restore page from localStorage on app load
-    const savedPage = localStorage.getItem('currentPage');
-    return savedPage ? (savedPage as Page) : Page.HOME;
-  });
+const AppContent: React.FC = () => {
+  const navigate = useNavigate();
   const [isReporting, setIsReporting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [hazardNotifications, setHazardNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    // Check for existing session
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+    const socketConnection = io(socketUrl, {
+      transports: ['polling', 'websocket'],
+      path: '/socket.io'
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('✅ Connected to Socket.io server');
+    });
+
+    socketConnection.on('disconnect', () => {
+      console.log('❌ Disconnected from Socket.io server');
+    });
+
+    // Listen for hazard alerts
+    socketConnection.on('hazard-reported', (hazard: any) => {
+      console.log('🚨 New hazard reported:', hazard);
+
+      // Add to notifications
+      setHazardNotifications(prev => [{
+        id: hazard.id,
+        type: hazard.type,
+        severity: hazard.severity,
+        location: hazard.location,
+        description: hazard.description,
+        timestamp: new Date().toISOString(),
+        read: false
+      }, ...prev]);
+
+      // Show browser notification if permission granted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🌊 Ocean Hazard Alert', {
+          body: `${hazard.type} reported nearby - Severity: ${hazard.severity}/10`,
+          icon: '/ocean-icon.png',
+          tag: hazard.id
+        });
+      }
+    });
+
+    setSocket(socketConnection);
+
+    return () => {
+      socketConnection.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     if (storedToken && storedUser) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      console.log('Loaded user from localStorage:', parsedUser);
     }
   }, []);
 
-  // Persist current page to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('currentPage', currentPage);
-  }, [currentPage]);
-
   const handleNavigate = (page: Page) => {
-    setCurrentPage(page);
+    const routes: Record<Page, string> = {
+      [Page.HOME]: '/',
+      [Page.MAP]: '/map',
+      [Page.NEWS]: '/news',
+      [Page.ANALYTICS]: '/analytics',
+      [Page.LOGIN]: '/login',
+      [Page.SIGNUP]: '/signup',
+      [Page.PROFILE]: '/profile',
+      [Page.GOVERNMENT_ALERTS]: '/government-alerts',
+    };
+    navigate(routes[page]);
   };
 
-  const handleLogin = (email: string, authToken: string) => {
+  const handleLogin = (authToken: string) => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      console.log('User logged in:', parsedUser);
     }
     setToken(authToken);
+    navigate('/map');
   };
 
   const handleLogout = () => {
@@ -53,64 +120,49 @@ const App: React.FC = () => {
     localStorage.removeItem('user');
     setUser(null);
     setToken(null);
-    setCurrentPage(Page.HOME);
+    navigate('/');
   };
 
   const handleReportSubmit = () => {
     setIsReporting(false);
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 5000);
-    // Trigger a page refresh or data reload if on map page
-    if (currentPage === Page.MAP) {
-      // The MapPage will auto-refresh due to its polling mechanism
-      window.dispatchEvent(new Event('hazardReportSubmitted'));
-    }
+    window.dispatchEvent(new Event('hazardReportSubmitted'));
   };
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case Page.HOME:
-        return <HomePage onNavigate={handleNavigate} user={user} onLogout={handleLogout} />;
-      case Page.MAP:
-        return <MapPage onReportHazard={() => setIsReporting(true)} onNavigate={handleNavigate} user={user} />;
-      case Page.NEWS:
-        return <NewsFeedPage onNavigate={handleNavigate} user={user} />;
-      case Page.ANALYTICS:
-        return <AnalyticsPage onNavigate={handleNavigate} user={user} />;
-      case Page.LOGIN:
-        return <LoginPage onNavigate={handleNavigate} onLogin={handleLogin} />;
-      case Page.SIGNUP:
-        return <SignupPage onNavigate={handleNavigate} onLogin={handleLogin} />;
-      case Page.PROFILE:
-        return <ProfilePage onNavigate={handleNavigate} user={user} onLogout={handleLogout} />;
-      default:
-        return <HomePage onNavigate={handleNavigate} user={user} onLogout={handleLogout} />;
-    }
-  };
-
-  // For hash-based routing simulation
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '').toUpperCase();
-      if (hash in Page) {
-        setCurrentPage(Page[hash as keyof typeof Page]);
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Initial check
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
 
   return (
     <>
-      {renderPage()}
+      <Routes>
+        <Route path="/" element={<HomePage onNavigate={handleNavigate} user={user} onLogout={handleLogout} />} />
+        <Route path="/map" element={<MapPage onReportHazard={() => setIsReporting(true)} onNavigate={handleNavigate} user={user} />} />
+        <Route path="/news" element={<NewsFeedPage onNavigate={handleNavigate} user={user} />} />
+        <Route path="/analytics" element={<AnalyticsPage onNavigate={handleNavigate} user={user} />} />
+        <Route path="/login" element={<LoginPage onNavigate={handleNavigate} onLogin={handleLogin} />} />
+        <Route path="/signup" element={<SignupPage onNavigate={handleNavigate} onLogin={handleLogin} />} />
+        <Route path="/profile" element={user ? <ProfilePage onNavigate={handleNavigate} user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} />
+        <Route path="/government-alerts" element={<GovernmentAlertsPage onNavigate={handleNavigate} user={user} />} />
+
+        {/* Admin Routes - Protected */}
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/reports" element={<ManageReports />} />
+        <Route path="/admin/users" element={<ManageUsers />} />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
       <ReportHazardWizard
         isOpen={isReporting}
         onClose={() => setIsReporting(false)}
         onSubmit={handleReportSubmit}
+      />
+      <NotificationCenter
+        notifications={hazardNotifications}
+        onClearAll={() => setHazardNotifications([])}
+        onMarkAsRead={(id: string) => {
+          setHazardNotifications(prev =>
+            prev.map(n => n.id === id ? { ...n, read: true } : n)
+          );
+        }}
       />
       {showSuccessToast && (
         <div className="fixed top-5 right-5 z-50 bg-green-500/20 backdrop-blur-md border border-green-400 text-white px-6 py-4 rounded-xl shadow-lg flex items-center space-x-4">
@@ -125,6 +177,14 @@ const App: React.FC = () => {
         </div>
       )}
     </>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 };
 

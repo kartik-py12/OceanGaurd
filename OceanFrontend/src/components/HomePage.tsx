@@ -70,6 +70,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, user, onLogout }
           <div className="flex items-center space-x-4">
             {user ? (
               <>
+                {user.role === 'admin' && (
+                  <a href="/admin" className="text-sm text-blue-400 hover:text-blue-300 font-medium">Admin Panel</a>
+                )}
                 <button onClick={() => onNavigate(Page.PROFILE)} className="text-sm text-slate-300 hover:text-white">Profile</button>
                 <span className="text-sm text-slate-300">Welcome, {user.name}</span>
                 <button onClick={onLogout} className="text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors">Logout</button>
@@ -136,6 +139,56 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, user, onLogout }
         </div>
       </section>
       
+      {/* Quick Access Section */}
+      <section className="py-20 bg-slate-900">
+        <div className="container mx-auto px-6">
+          <h2 className="text-4xl font-bold text-white mb-12 text-center">Explore OceanGuard</h2>
+          <div className="grid md:grid-cols-4 gap-6">
+            <button 
+              onClick={() => onNavigate(Page.MAP)}
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 p-8 rounded-xl text-center transition group"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition">🗺️</div>
+              <h3 className="text-xl font-bold text-white mb-2">Live Map</h3>
+              <p className="text-slate-400 text-sm">View and report hazards in real-time</p>
+            </button>
+
+            <button 
+              onClick={() => onNavigate(Page.NEWS)}
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 p-8 rounded-xl text-center transition group"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition">📰</div>
+              <h3 className="text-xl font-bold text-white mb-2">News Feed</h3>
+              <p className="text-slate-400 text-sm">Latest ocean conservation news</p>
+            </button>
+
+            <button 
+              onClick={() => onNavigate(Page.ANALYTICS)}
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 p-8 rounded-xl text-center transition group"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition">📊</div>
+              <h3 className="text-xl font-bold text-white mb-2">Analytics</h3>
+              <p className="text-slate-400 text-sm">Social media insights & trends</p>
+            </button>
+
+            <button 
+              onClick={() => onNavigate(Page.GOVERNMENT_ALERTS)}
+              className="bg-linear-to-br from-red-900/50 to-orange-900/50 hover:from-red-800/60 hover:to-orange-800/60 border-2 border-red-500/50 p-8 rounded-xl text-center transition group relative overflow-hidden"
+            >
+              <div className="absolute top-2 right-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              </div>
+              <div className="text-5xl mb-4 group-hover:scale-110 transition">🚨</div>
+              <h3 className="text-xl font-bold text-white mb-2">Gov. Alerts</h3>
+              <p className="text-slate-300 text-sm">Official NOAA & USGS warnings</p>
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Proactive Approach Section */}
       <section className="py-20 bg-slate-800/50">
         <div className="container mx-auto px-6 text-center">
